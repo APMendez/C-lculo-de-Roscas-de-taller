@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PRO Roscas🔩</title>
+<title>Roscas PRO 🔩</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -62,9 +62,9 @@ class="border p-2 rounded w-full"></select>
 <script>
 
 // =====================
-// PARSER PULGADAS
+// PARSER DIÁMETRO (mm / pulgadas)
 // =====================
-function parseInput(val){
+function parseDiametro(val){
   if(!val) return null;
 
   if(val.includes("/")){
@@ -73,6 +73,21 @@ function parseInput(val){
   }
 
   return parseFloat(val);
+}
+
+// =====================
+// PARSER PASO (mm o TPI)
+// =====================
+function parsePaso(val){
+  if(!val) return null;
+
+  let num = parseFloat(val);
+
+  if(num > 5){
+    return { tipo: "tpi", valor: num };
+  } else {
+    return { tipo: "mm", valor: num };
+  }
 }
 
 // =====================
@@ -90,7 +105,7 @@ for(let d in metricas){
   roscas.push({n:`M${d}x${metricas[d]}`, t:"Métrica", d:+d, p:metricas[d], ang:60});
 }
 
-// MÉTRICAS FINAS
+// FINAS
 const finas = {
 10:[1.25],12:[1.5],14:[1.5],16:[1.5],20:[1.5],24:[2]
 };
@@ -120,7 +135,7 @@ pulgadas.forEach(p=>{
   roscas.push({n:`${p[0]} UNF`, t:"UNF", d:p[1], tpi:p[3], ang:60});
 });
 
-// BSP (Gas)
+// BSP
 const bsp = [
 ["1/4",13.16,19],
 ["3/8",16.66,19],
@@ -178,14 +193,14 @@ function cambiarModo(){
 }
 
 // =====================
-// IDENTIFICAR (BOTONES)
+// IDENTIFICAR CORREGIDO
 // =====================
 function identificar(){
 
   const lista = roscasFiltradas();
 
-  const d = parseInput(diametro.value);
-  const pInput = parseFloat(paso.value);
+  const d = parseDiametro(diametro.value);
+  const pasoInput = parsePaso(paso.value);
 
   resultado.innerHTML = "";
   detalle.innerHTML = "";
@@ -193,7 +208,8 @@ function identificar(){
   let resultados = [];
 
   lista.forEach(r=>{
-    let paso = r.p ? r.p : 25.4/r.tpi;
+
+    let pasoMM = r.p ? r.p : 25.4/r.tpi;
 
     let match = true;
 
@@ -201,8 +217,15 @@ function identificar(){
       if(Math.abs(r.d - d) > 0.7) match = false;
     }
 
-    if(pInput){
-      if(Math.abs(paso - pInput) > 0.3) match = false;
+    if(pasoInput){
+
+      if(pasoInput.tipo === "mm"){
+        if(Math.abs(pasoMM - pasoInput.valor) > 0.3) match = false;
+      }
+
+      if(pasoInput.tipo === "tpi"){
+        if(!r.tpi || Math.abs(r.tpi - pasoInput.valor) > 1) match = false;
+      }
     }
 
     if(match) resultados.push(r);

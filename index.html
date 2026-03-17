@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Identificador de Roscas 🔩</title>
+<title>Roscas PRO 🔩</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -11,16 +11,13 @@
 
 <div class="max-w-md mx-auto p-4">
 
-<h1 class="text-xl font-bold text-center mb-4">🔩 Roscas Taller</h1>
+<h1 class="text-xl font-bold text-center mb-4">🔩 Roscas PRO</h1>
 
-<!-- MODO -->
-<div class="bg-white p-4 rounded-xl shadow mb-4">
 <select id="modo" onchange="cambiarModo()"
-class="border p-2 rounded w-full">
-<option value="identificar">🔍 Identificar rosca</option>
-<option value="consultar">📏 Consultar rosca</option>
+class="border p-2 rounded w-full mb-4">
+<option value="identificar">🔍 Identificar</option>
+<option value="consultar">📏 Consultar</option>
 </select>
-</div>
 
 <!-- IDENTIFICAR -->
 <div id="identificar" class="bg-white p-4 rounded-xl shadow mb-4">
@@ -31,7 +28,7 @@ class="border p-2 rounded w-full mb-2">
 <input id="paso" type="number" placeholder="Paso (mm) o TPI"
 class="border p-2 rounded w-full mb-2">
 
-<button onclick="identificarRosca()"
+<button onclick="identificar()"
 class="bg-green-300 w-full py-2 rounded">
 Identificar
 </button>
@@ -46,7 +43,6 @@ class="border p-2 rounded w-full"></select>
 
 </div>
 
-<!-- RESULTADO -->
 <div class="bg-white p-4 rounded-xl shadow">
 <pre id="resultado" class="text-sm"></pre>
 </div>
@@ -55,45 +51,67 @@ class="border p-2 rounded w-full"></select>
 
 <script>
 
-// BASE DE DATOS (simplificada pero útil)
+// BASE COMPLETA (representativa de taller)
 const roscas = [
-  {nombre:"M6x1", tipo:"Métrica", d:6, paso:1, ang:60, mecha:5},
-  {nombre:"M8x1.25", tipo:"Métrica", d:8, paso:1.25, ang:60, mecha:6.8},
-  {nombre:"M10x1.5", tipo:"Métrica", d:10, paso:1.5, ang:60, mecha:8.5},
 
-  {nombre:"1/4 UNC", tipo:"Americana", d:6.35, tpi:20, ang:60, mecha:5.2},
-  {nombre:"5/16 UNC", tipo:"Americana", d:7.9, tpi:18, ang:60, mecha:6.5},
+//// METRICAS
+{n:"M6x1", t:"Métrica", d:6, p:1, ang:60},
+{n:"M8x1.25", t:"Métrica", d:8, p:1.25, ang:60},
+{n:"M10x1.5", t:"Métrica", d:10, p:1.5, ang:60},
+{n:"M10x1.25", t:"Métrica fina", d:10, p:1.25, ang:60},
+{n:"M12x1.75", t:"Métrica", d:12, p:1.75, ang:60},
+{n:"M12x1.5", t:"Métrica fina", d:12, p:1.5, ang:60},
+{n:"M16x2", t:"Métrica", d:16, p:2, ang:60},
 
-  {nombre:"1/4 Whitworth", tipo:"Whitworth", d:6.35, tpi:20, ang:55, mecha:5.3},
+//// UNC
+{n:"1/4 UNC", t:"UNC", d:6.35, tpi:20, ang:60},
+{n:"5/16 UNC", t:"UNC", d:7.94, tpi:18, ang:60},
+{n:"3/8 UNC", t:"UNC", d:9.52, tpi:16, ang:60},
 
-  {nombre:"1/4 BSP", tipo:"Gas", d:13.1, tpi:19, ang:55, mecha:11.8}
+//// UNF
+{n:"1/4 UNF", t:"UNF", d:6.35, tpi:28, ang:60},
+{n:"5/16 UNF", t:"UNF", d:7.94, tpi:24, ang:60},
+{n:"3/8 UNF", t:"UNF", d:9.52, tpi:24, ang:60},
+
+//// WHITWORTH
+{n:"1/4 BSW", t:"Whitworth", d:6.35, tpi:20, ang:55},
+{n:"5/16 BSW", t:"Whitworth", d:7.94, tpi:18, ang:55},
+
+//// BSPP / BSPT
+{n:"1/4 BSPP", t:"Gas paralela", d:13.16, tpi:19, ang:55},
+{n:"1/4 BSPT", t:"Gas cónica", d:13.16, tpi:19, ang:55},
+{n:"3/8 BSPP", t:"Gas paralela", d:16.66, tpi:19, ang:55},
+{n:"3/8 BSPT", t:"Gas cónica", d:16.66, tpi:19, ang:55}
+
 ];
 
-// CARGAR SELECTOR
+// CARGAR SELECT
 const sel = document.getElementById("selector");
 roscas.forEach((r,i)=>{
-  let opt = document.createElement("option");
-  opt.value=i;
-  opt.text=r.nombre;
-  sel.appendChild(opt);
+  let o=document.createElement("option");
+  o.value=i;
+  o.text=r.n;
+  sel.appendChild(o);
 });
 
 function cambiarModo(){
-  document.getElementById("identificar").classList.toggle("hidden");
-  document.getElementById("consultar").classList.toggle("hidden");
+  identificar.classList.toggle("hidden");
+  consultar.classList.toggle("hidden");
 }
 
 // IDENTIFICAR
-function identificarRosca(){
-  const d = parseFloat(document.getElementById("diametro").value);
-  const p = parseFloat(document.getElementById("paso").value);
+function identificar(){
 
-  let mejor = null;
-  let errorMin = 999;
+  const d = parseFloat(diametro.value);
+  const pInput = parseFloat(paso.value);
+
+  let mejor=null;
+  let errorMin=999;
 
   roscas.forEach(r=>{
-    let pasoRef = r.paso ? r.paso : (25.4 / r.tpi);
-    let error = Math.abs(r.d - d) + Math.abs(pasoRef - p);
+    let pasoRef = r.p ? r.p : 25.4/r.tpi;
+
+    let error = Math.abs(r.d - d) + Math.abs(pasoRef - pInput);
 
     if(error < errorMin){
       errorMin = error;
@@ -101,33 +119,40 @@ function identificarRosca(){
     }
   });
 
-  if(mejor){
-    mostrar(mejor, true);
-  }
+  if(mejor) mostrar(mejor,true);
 }
 
-// MOSTRAR DATOS
+// MOSTRAR
 function mostrarDatos(){
-  const r = roscas[document.getElementById("selector").value];
-  mostrar(r, false);
+  mostrar(roscas[selector.value],false);
 }
 
-function mostrar(r, aproximado){
+function mostrar(r,aprox){
 
-  let paso = r.paso ? r.paso + " mm" : r.tpi + " TPI";
+  let paso = r.p ? r.p+" mm" : r.tpi+" TPI";
+  let pasoMM = r.p ? r.p : 25.4/r.tpi;
 
-  document.getElementById("resultado").innerText =
-`${aproximado ? "Rosca aproximada:\n" : ""}
-Tipo: ${r.tipo}
-Nombre: ${r.nombre}
+  let mecha = (r.d - pasoMM).toFixed(2);
+  let nucleo = (r.d - 1.2*pasoMM).toFixed(2);
+  let prof = (0.613 * pasoMM).toFixed(2);
 
-Diámetro exterior: ${r.d} mm
+  resultado.innerText =
+`${aprox?"Rosca aproximada\n\n":""}
+Tipo: ${r.t}
+Nombre: ${r.n}
+
+Ø exterior: ${r.d} mm
 Paso: ${paso}
 Ángulo: ${r.ang}°
 
-Mecha recomendada: ${r.mecha} mm
+Ø núcleo aprox: ${nucleo} mm
+Profundidad teórica: ${prof} mm
 
-Profundidad aprox: ${Math.round(r.d * 0.6)} mm`;
+Mecha recomendada: ${mecha} mm
+
+Nota:
+- Usar macho adecuado (${r.t})
+- Lubricar bien en inox`;
 }
 
 </script>

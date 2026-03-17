@@ -20,7 +20,7 @@ class="border p-2 rounded w-full mb-4">
 </select>
 
 <!-- IDENTIFICAR -->
-<div id="identificar" class="bg-white p-4 rounded-xl shadow mb-4">
+<div id="bloqueIdentificar" class="bg-white p-4 rounded-xl shadow mb-4">
 
 <input id="diametro" type="number" placeholder="Diámetro (mm)"
 class="border p-2 rounded w-full mb-2">
@@ -36,7 +36,7 @@ Identificar
 </div>
 
 <!-- CONSULTAR -->
-<div id="consultar" class="bg-white p-4 rounded-xl shadow mb-4 hidden">
+<div id="bloqueConsultar" class="bg-white p-4 rounded-xl shadow mb-4 hidden">
 
 <select id="selector" onchange="mostrarDatos()"
 class="border p-2 rounded w-full"></select>
@@ -51,41 +51,22 @@ class="border p-2 rounded w-full"></select>
 
 <script>
 
-// BASE COMPLETA (representativa de taller)
+// BASE
 const roscas = [
-
-//// METRICAS
-{n:"M6x1", t:"Métrica", d:6, p:1, ang:60},
-{n:"M8x1.25", t:"Métrica", d:8, p:1.25, ang:60},
-{n:"M10x1.5", t:"Métrica", d:10, p:1.5, ang:60},
-{n:"M10x1.25", t:"Métrica fina", d:10, p:1.25, ang:60},
-{n:"M12x1.75", t:"Métrica", d:12, p:1.75, ang:60},
-{n:"M12x1.5", t:"Métrica fina", d:12, p:1.5, ang:60},
 {n:"M16x2", t:"Métrica", d:16, p:2, ang:60},
+{n:"M20x2.5", t:"Métrica", d:20, p:2.5, ang:60},
+{n:"M12x1.75", t:"Métrica", d:12, p:1.75, ang:60},
 
-//// UNC
-{n:"1/4 UNC", t:"UNC", d:6.35, tpi:20, ang:60},
-{n:"5/16 UNC", t:"UNC", d:7.94, tpi:18, ang:60},
-{n:"3/8 UNC", t:"UNC", d:9.52, tpi:16, ang:60},
+{n:"1/2 UNC", t:"UNC", d:12.7, tpi:13, ang:60},
+{n:"1/2 UNF", t:"UNF", d:12.7, tpi:20, ang:60},
 
-//// UNF
-{n:"1/4 UNF", t:"UNF", d:6.35, tpi:28, ang:60},
-{n:"5/16 UNF", t:"UNF", d:7.94, tpi:24, ang:60},
-{n:"3/8 UNF", t:"UNF", d:9.52, tpi:24, ang:60},
+{n:"1/2 BSW", t:"Whitworth", d:12.7, tpi:12, ang:55},
 
-//// WHITWORTH
-{n:"1/4 BSW", t:"Whitworth", d:6.35, tpi:20, ang:55},
-{n:"5/16 BSW", t:"Whitworth", d:7.94, tpi:18, ang:55},
-
-//// BSPP / BSPT
-{n:"1/4 BSPP", t:"Gas paralela", d:13.16, tpi:19, ang:55},
-{n:"1/4 BSPT", t:"Gas cónica", d:13.16, tpi:19, ang:55},
-{n:"3/8 BSPP", t:"Gas paralela", d:16.66, tpi:19, ang:55},
-{n:"3/8 BSPT", t:"Gas cónica", d:16.66, tpi:19, ang:55}
-
+{n:"1/2 BSPP", t:"Gas paralela", d:20.95, tpi:14, ang:55},
+{n:"1/2 BSPT", t:"Gas cónica", d:20.95, tpi:14, ang:55}
 ];
 
-// CARGAR SELECT
+// cargar selector
 const sel = document.getElementById("selector");
 roscas.forEach((r,i)=>{
   let o=document.createElement("option");
@@ -94,65 +75,83 @@ roscas.forEach((r,i)=>{
   sel.appendChild(o);
 });
 
+// cambio modo (FIX)
 function cambiarModo(){
-  identificar.classList.toggle("hidden");
-  consultar.classList.toggle("hidden");
+  const modo = document.getElementById("modo").value;
+
+  document.getElementById("bloqueIdentificar").classList.toggle("hidden", modo !== "identificar");
+  document.getElementById("bloqueConsultar").classList.toggle("hidden", modo !== "consultar");
 }
 
-// IDENTIFICAR
+// IDENTIFICAR (FIX REAL)
 function identificar(){
 
-  const d = parseFloat(diametro.value);
-  const pInput = parseFloat(paso.value);
+  const d = parseFloat(document.getElementById("diametro").value);
+  const pInput = parseFloat(document.getElementById("paso").value);
 
-  let mejor=null;
-  let errorMin=999;
+  if(!d || !pInput){
+    resultado.innerText = "Ingresá diámetro y paso";
+    return;
+  }
+
+  let candidatos = [];
 
   roscas.forEach(r=>{
     let pasoRef = r.p ? r.p : 25.4/r.tpi;
 
-    let error = Math.abs(r.d - d) + Math.abs(pasoRef - pInput);
+    let errorD = Math.abs(r.d - d);
+    let errorP = Math.abs(pasoRef - pInput);
 
-    if(error < errorMin){
-      errorMin = error;
-      mejor = r;
+    // tolerancias reales
+    if(errorD < 0.5 && errorP < 0.2){
+      candidatos.push(r);
     }
   });
 
-  if(mejor) mostrar(mejor,true);
+  if(candidatos.length === 0){
+    resultado.innerText = "❌ No coincide con una rosca estándar de la tabla";
+    return;
+  }
+
+  if(candidatos.length === 1){
+    mostrar(candidatos[0], true);
+  } else {
+    let txt = "⚠️ Posibles coincidencias:\n\n";
+    candidatos.forEach(r=>{
+      txt += "- " + r.n + " (" + r.t + ")\n";
+    });
+    resultado.innerText = txt;
+  }
+}
+
+// CONSULTAR
+function mostrarDatos(){
+  mostrar(roscas[document.getElementById("selector").value], false);
 }
 
 // MOSTRAR
-function mostrarDatos(){
-  mostrar(roscas[selector.value],false);
-}
-
 function mostrar(r,aprox){
 
-  let paso = r.p ? r.p+" mm" : r.tpi+" TPI";
   let pasoMM = r.p ? r.p : 25.4/r.tpi;
+  let pasoTxt = r.p ? r.p+" mm" : r.tpi+" TPI";
 
   let mecha = (r.d - pasoMM).toFixed(2);
   let nucleo = (r.d - 1.2*pasoMM).toFixed(2);
   let prof = (0.613 * pasoMM).toFixed(2);
 
-  resultado.innerText =
-`${aprox?"Rosca aproximada\n\n":""}
+  document.getElementById("resultado").innerText =
+`${aprox?"✔ Rosca identificada\n\n":""}
 Tipo: ${r.t}
 Nombre: ${r.n}
 
 Ø exterior: ${r.d} mm
-Paso: ${paso}
+Paso: ${pasoTxt}
 Ángulo: ${r.ang}°
 
-Ø núcleo aprox: ${nucleo} mm
-Profundidad teórica: ${prof} mm
+Ø núcleo: ${nucleo} mm
+Profundidad: ${prof} mm
 
-Mecha recomendada: ${mecha} mm
-
-Nota:
-- Usar macho adecuado (${r.t})
-- Lubricar bien en inox`;
+Mecha: ${mecha} mm`;
 }
 
 </script>

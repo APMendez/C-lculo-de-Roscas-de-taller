@@ -54,9 +54,8 @@ class="border p-2 rounded w-full"></select>
 
 </div>
 
-<div class="bg-white p-4 rounded-xl shadow">
-<pre id="resultado"></pre>
-</div>
+<div id="resultado" class="space-y-2"></div>
+<div id="detalle" class="mt-3 p-3 bg-blue-50 rounded-lg text-sm"></div>
 
 </div>
 
@@ -77,11 +76,11 @@ function parseInput(val){
 }
 
 // =====================
-// GENERACIÓN ROSCAS
+// BASE DE ROSCAS
 // =====================
 let roscas = [];
 
-// MÉTRICAS HASTA M24
+// MÉTRICAS
 const metricas = {
 3:0.5,4:0.7,5:0.8,6:1,8:1.25,10:1.5,12:1.75,
 14:2,16:2,18:2.5,20:2.5,22:2.5,24:3
@@ -91,7 +90,7 @@ for(let d in metricas){
   roscas.push({n:`M${d}x${metricas[d]}`, t:"Métrica", d:+d, p:metricas[d], ang:60});
 }
 
-// FINAS
+// MÉTRICAS FINAS
 const finas = {
 10:[1.25],12:[1.5],14:[1.5],16:[1.5],20:[1.5],24:[2]
 };
@@ -102,7 +101,7 @@ for(let d in finas){
   });
 }
 
-// UNC / UNF HASTA 1"
+// UNC / UNF
 const pulgadas = [
 ["1/4",6.35,20,28],
 ["5/16",7.94,18,24],
@@ -121,7 +120,7 @@ pulgadas.forEach(p=>{
   roscas.push({n:`${p[0]} UNF`, t:"UNF", d:p[1], tpi:p[3], ang:60});
 });
 
-// BSP
+// BSP (Gas)
 const bsp = [
 ["1/4",13.16,19],
 ["3/8",16.66,19],
@@ -179,7 +178,7 @@ function cambiarModo(){
 }
 
 // =====================
-// IDENTIFICAR (MEJORADO)
+// IDENTIFICAR (BOTONES)
 // =====================
 function identificar(){
 
@@ -187,6 +186,9 @@ function identificar(){
 
   const d = parseInput(diametro.value);
   const pInput = parseFloat(paso.value);
+
+  resultado.innerHTML = "";
+  detalle.innerHTML = "";
 
   let resultados = [];
 
@@ -206,38 +208,52 @@ function identificar(){
     if(match) resultados.push(r);
   });
 
-  if(resultados.length===0){
-    resultado.innerText="❌ No coincide con estándar";
+  if(resultados.length === 0){
+    resultado.innerHTML = "❌ No coincide con estándar";
     return;
   }
 
-  let txt="Coincidencias:\n\n";
   resultados.forEach(r=>{
-    txt+=`- ${r.n} (${r.t})\n`;
-  });
+    let btn = document.createElement("button");
 
-  resultado.innerText=txt;
+    btn.className = "w-full bg-green-200 hover:bg-green-300 transition p-2 rounded-lg text-left";
+
+    btn.innerText = `${r.n} (${r.t})`;
+
+    btn.onclick = () => mostrarDetalle(r);
+
+    resultado.appendChild(btn);
+  });
 }
 
 // =====================
-// MOSTRAR
+// DETALLE
+// =====================
+function mostrarDetalle(r){
+
+  let paso = r.p ? r.p : 25.4/r.tpi;
+
+  detalle.innerText =
+`🔩 ${r.n}
+
+Tipo: ${r.t}
+
+Ø exterior: ${r.d} mm
+Paso: ${r.p ? r.p + " mm" : r.tpi + " TPI"}
+Ángulo: ${r.ang}°
+
+Mecha recomendada: ${(r.d - paso).toFixed(2)} mm`;
+}
+
+// =====================
+// CONSULTAR
 // =====================
 function mostrarDatos(){
   const r = roscasFiltradas()[selector.value];
-  let paso = r.p ? r.p : 25.4/r.tpi;
-
-  resultado.innerText =
-`Tipo: ${r.t}
-Nombre: ${r.n}
-
-Ø exterior: ${r.d} mm
-Paso: ${r.p ? r.p+" mm" : r.tpi+" TPI"}
-Ángulo: ${r.ang}°
-
-Mecha: ${(r.d - paso).toFixed(2)} mm`;
+  mostrarDetalle(r);
 }
 
-// init
+// INIT
 cargarSelector();
 
 </script>

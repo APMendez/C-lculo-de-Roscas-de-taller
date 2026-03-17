@@ -13,7 +13,6 @@
 
 <h1 class="text-xl font-bold text-center mb-4">🔩 Roscas PRO</h1>
 
-<!-- FILTRO -->
 <select id="filtro" onchange="cargarSelector()"
 class="border p-2 rounded w-full mb-2">
 <option value="todas">Todas</option>
@@ -25,7 +24,6 @@ class="border p-2 rounded w-full mb-2">
 <option value="Gas">Gas</option>
 </select>
 
-<!-- MODO -->
 <select id="modo" onchange="cambiarModo()"
 class="border p-2 rounded w-full mb-4">
 <option value="identificar">🔍 Identificar</option>
@@ -35,10 +33,10 @@ class="border p-2 rounded w-full mb-4">
 <!-- IDENTIFICAR -->
 <div id="bloqueIdentificar" class="bg-white p-4 rounded-xl shadow mb-4">
 
-<input id="diametro" type="number" placeholder="Diámetro (mm)"
+<input id="diametro" placeholder="Diámetro (mm o 1/2)"
 class="border p-2 rounded w-full mb-2">
 
-<input id="paso" type="number" placeholder="Paso (mm)"
+<input id="paso" placeholder="Paso (mm o TPI)"
 class="border p-2 rounded w-full mb-2">
 
 <button onclick="identificar()"
@@ -64,69 +62,97 @@ class="border p-2 rounded w-full"></select>
 
 <script>
 
-let roscas = [];
-
 // =====================
-// GENERACIÓN (igual que antes)
+// PARSER PULGADAS
 // =====================
+function parseInput(val){
+  if(!val) return null;
 
-const pasosCoarse = {
-  3:0.5,4:0.7,5:0.8,6:1,8:1.25,10:1.5,12:1.75,
-  14:2,16:2,18:2.5,20:2.5,22:2.5,24:3
-};
+  if(val.includes("/")){
+    let parts = val.split("/");
+    return (parseFloat(parts[0]) / parseFloat(parts[1])) * 25.4;
+  }
 
-const pasosFine = {
-  10:[1.25],12:[1.5],16:[1.5],20:[1.5]
-};
-
-for(let d in pasosCoarse){
-  roscas.push({n:`M${d}x${pasosCoarse[d]}`, t:"Métrica", d:+d, p:pasosCoarse[d], ang:60});
+  return parseFloat(val);
 }
 
-for(let d in pasosFine){
-  pasosFine[d].forEach(p=>{
+// =====================
+// GENERACIÓN ROSCAS
+// =====================
+let roscas = [];
+
+// MÉTRICAS HASTA M24
+const metricas = {
+3:0.5,4:0.7,5:0.8,6:1,8:1.25,10:1.5,12:1.75,
+14:2,16:2,18:2.5,20:2.5,22:2.5,24:3
+};
+
+for(let d in metricas){
+  roscas.push({n:`M${d}x${metricas[d]}`, t:"Métrica", d:+d, p:metricas[d], ang:60});
+}
+
+// FINAS
+const finas = {
+10:[1.25],12:[1.5],14:[1.5],16:[1.5],20:[1.5],24:[2]
+};
+
+for(let d in finas){
+  finas[d].forEach(p=>{
     roscas.push({n:`M${d}x${p}`, t:"Métrica fina", d:+d, p:p, ang:60});
   });
 }
 
+// UNC / UNF HASTA 1"
 const pulgadas = [
-  {n:"1/4", d:6.35, UNC:20, UNF:28},
-  {n:"5/16", d:7.94, UNC:18, UNF:24},
-  {n:"3/8", d:9.52, UNC:16, UNF:24},
-  {n:"1/2", d:12.7, UNC:13, UNF:20},
-  {n:"5/8", d:15.87, UNC:11, UNF:18}
+["1/4",6.35,20,28],
+["5/16",7.94,18,24],
+["3/8",9.52,16,24],
+["7/16",11.11,14,20],
+["1/2",12.7,13,20],
+["9/16",14.29,12,18],
+["5/8",15.87,11,18],
+["3/4",19.05,10,16],
+["7/8",22.23,9,14],
+["1",25.4,8,12]
 ];
 
 pulgadas.forEach(p=>{
-  roscas.push({n:`${p.n} UNC`, t:"UNC", d:p.d, tpi:p.UNC, ang:60});
-  roscas.push({n:`${p.n} UNF`, t:"UNF", d:p.d, tpi:p.UNF, ang:60});
+  roscas.push({n:`${p[0]} UNC`, t:"UNC", d:p[1], tpi:p[2], ang:60});
+  roscas.push({n:`${p[0]} UNF`, t:"UNF", d:p[1], tpi:p[3], ang:60});
 });
 
-const whit = [
-  {n:"1/4", d:6.35, tpi:20},
-  {n:"5/16", d:7.94, tpi:18}
-];
-
-whit.forEach(w=>{
-  roscas.push({n:`${w.n} BSW`, t:"Whitworth", d:w.d, tpi:w.tpi, ang:55});
-});
-
+// BSP
 const bsp = [
-  {n:"1/4", d:13.16, tpi:19},
-  {n:"3/8", d:16.66, tpi:19},
-  {n:"1/2", d:20.95, tpi:14}
+["1/4",13.16,19],
+["3/8",16.66,19],
+["1/2",20.95,14],
+["3/4",26.44,14],
+["1",33.25,11]
 ];
 
 bsp.forEach(b=>{
-  roscas.push({n:`${b.n} BSPP`, t:"Gas", d:b.d, tpi:b.tpi, ang:55});
-  roscas.push({n:`${b.n} BSPT`, t:"Gas", d:b.d, tpi:b.tpi, ang:55});
+  roscas.push({n:`${b[0]} BSPP`, t:"Gas", d:b[1], tpi:b[2], ang:55});
+  roscas.push({n:`${b[0]} BSPT`, t:"Gas", d:b[1], tpi:b[2], ang:55});
+});
+
+// WHITWORTH
+const whit = [
+["1/4",6.35,20],
+["3/8",9.52,16],
+["1/2",12.7,12],
+["5/8",15.87,11],
+["3/4",19.05,10]
+];
+
+whit.forEach(w=>{
+  roscas.push({n:`${w[0]} BSW`, t:"Whitworth", d:w[1], tpi:w[2], ang:55});
 });
 
 // =====================
-// FILTRADO
+// FILTRO
 // =====================
 function roscasFiltradas(){
-  const f = document.getElementById("filtro").value;
+  const f = filtro.value;
   if(f==="todas") return roscas;
   return roscas.filter(r=>r.t.includes(f));
 }
@@ -135,14 +161,12 @@ function roscasFiltradas(){
 // SELECTOR
 // =====================
 function cargarSelector(){
-  const sel = document.getElementById("selector");
-  sel.innerHTML = "";
-
+  selector.innerHTML="";
   roscasFiltradas().forEach((r,i)=>{
     let o=document.createElement("option");
     o.value=i;
     o.text=r.n;
-    sel.appendChild(o);
+    selector.appendChild(o);
   });
 }
 
@@ -150,38 +174,45 @@ function cargarSelector(){
 // UI
 // =====================
 function cambiarModo(){
-  const m = modo.value;
-  bloqueIdentificar.classList.toggle("hidden", m!=="identificar");
-  bloqueConsultar.classList.toggle("hidden", m!=="consultar");
+  bloqueIdentificar.classList.toggle("hidden", modo.value!=="identificar");
+  bloqueConsultar.classList.toggle("hidden", modo.value!=="consultar");
 }
 
 // =====================
-// IDENTIFICAR
+// IDENTIFICAR (MEJORADO)
 // =====================
 function identificar(){
 
   const lista = roscasFiltradas();
 
-  const d = parseFloat(diametro.value);
-  const p = parseFloat(paso.value);
+  const d = parseInput(diametro.value);
+  const pInput = parseFloat(paso.value);
 
-  let encontrados = [];
+  let resultados = [];
 
   lista.forEach(r=>{
     let paso = r.p ? r.p : 25.4/r.tpi;
 
-    if(Math.abs(r.d - d)<0.5 && Math.abs(paso - p)<0.2){
-      encontrados.push(r);
+    let match = true;
+
+    if(d){
+      if(Math.abs(r.d - d) > 0.7) match = false;
     }
+
+    if(pInput){
+      if(Math.abs(paso - pInput) > 0.3) match = false;
+    }
+
+    if(match) resultados.push(r);
   });
 
-  if(encontrados.length===0){
-    resultado.innerText="❌ No coincide";
+  if(resultados.length===0){
+    resultado.innerText="❌ No coincide con estándar";
     return;
   }
 
   let txt="Coincidencias:\n\n";
-  encontrados.forEach(r=>{
+  resultados.forEach(r=>{
     txt+=`- ${r.n} (${r.t})\n`;
   });
 
@@ -192,12 +223,10 @@ function identificar(){
 // MOSTRAR
 // =====================
 function mostrarDatos(){
-  const lista = roscasFiltradas();
-  const r = lista[selector.value];
-
+  const r = roscasFiltradas()[selector.value];
   let paso = r.p ? r.p : 25.4/r.tpi;
 
-  resultado.innerText=
+  resultado.innerText =
 `Tipo: ${r.t}
 Nombre: ${r.n}
 

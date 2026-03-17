@@ -13,6 +13,19 @@
 
 <h1 class="text-xl font-bold text-center mb-4">🔩 Roscas PRO</h1>
 
+<!-- FILTRO -->
+<select id="filtro" onchange="cargarSelector()"
+class="border p-2 rounded w-full mb-2">
+<option value="todas">Todas</option>
+<option value="Métrica">Métrica</option>
+<option value="Métrica fina">Métrica fina</option>
+<option value="UNC">UNC</option>
+<option value="UNF">UNF</option>
+<option value="Whitworth">Whitworth</option>
+<option value="Gas">Gas</option>
+</select>
+
+<!-- MODO -->
 <select id="modo" onchange="cambiarModo()"
 class="border p-2 rounded w-full mb-4">
 <option value="identificar">🔍 Identificar</option>
@@ -25,7 +38,7 @@ class="border p-2 rounded w-full mb-4">
 <input id="diametro" type="number" placeholder="Diámetro (mm)"
 class="border p-2 rounded w-full mb-2">
 
-<input id="paso" type="number" placeholder="Paso (mm) o TPI"
+<input id="paso" type="number" placeholder="Paso (mm)"
 class="border p-2 rounded w-full mb-2">
 
 <button onclick="identificar()"
@@ -44,115 +57,159 @@ class="border p-2 rounded w-full"></select>
 </div>
 
 <div class="bg-white p-4 rounded-xl shadow">
-<pre id="resultado" class="text-sm"></pre>
+<pre id="resultado"></pre>
 </div>
 
 </div>
 
 <script>
 
-// BASE
-const roscas = [
-{n:"M16x2", t:"Métrica", d:16, p:2, ang:60},
-{n:"M20x2.5", t:"Métrica", d:20, p:2.5, ang:60},
-{n:"M12x1.75", t:"Métrica", d:12, p:1.75, ang:60},
+let roscas = [];
 
-{n:"1/2 UNC", t:"UNC", d:12.7, tpi:13, ang:60},
-{n:"1/2 UNF", t:"UNF", d:12.7, tpi:20, ang:60},
+// =====================
+// GENERACIÓN (igual que antes)
+// =====================
 
-{n:"1/2 BSW", t:"Whitworth", d:12.7, tpi:12, ang:55},
+const pasosCoarse = {
+  3:0.5,4:0.7,5:0.8,6:1,8:1.25,10:1.5,12:1.75,
+  14:2,16:2,18:2.5,20:2.5,22:2.5,24:3
+};
 
-{n:"1/2 BSPP", t:"Gas paralela", d:20.95, tpi:14, ang:55},
-{n:"1/2 BSPT", t:"Gas cónica", d:20.95, tpi:14, ang:55}
-];
+const pasosFine = {
+  10:[1.25],12:[1.5],16:[1.5],20:[1.5]
+};
 
-// cargar selector
-const sel = document.getElementById("selector");
-roscas.forEach((r,i)=>{
-  let o=document.createElement("option");
-  o.value=i;
-  o.text=r.n;
-  sel.appendChild(o);
-});
-
-// cambio modo (FIX)
-function cambiarModo(){
-  const modo = document.getElementById("modo").value;
-
-  document.getElementById("bloqueIdentificar").classList.toggle("hidden", modo !== "identificar");
-  document.getElementById("bloqueConsultar").classList.toggle("hidden", modo !== "consultar");
+for(let d in pasosCoarse){
+  roscas.push({n:`M${d}x${pasosCoarse[d]}`, t:"Métrica", d:+d, p:pasosCoarse[d], ang:60});
 }
 
-// IDENTIFICAR (FIX REAL)
+for(let d in pasosFine){
+  pasosFine[d].forEach(p=>{
+    roscas.push({n:`M${d}x${p}`, t:"Métrica fina", d:+d, p:p, ang:60});
+  });
+}
+
+const pulgadas = [
+  {n:"1/4", d:6.35, UNC:20, UNF:28},
+  {n:"5/16", d:7.94, UNC:18, UNF:24},
+  {n:"3/8", d:9.52, UNC:16, UNF:24},
+  {n:"1/2", d:12.7, UNC:13, UNF:20},
+  {n:"5/8", d:15.87, UNC:11, UNF:18}
+];
+
+pulgadas.forEach(p=>{
+  roscas.push({n:`${p.n} UNC`, t:"UNC", d:p.d, tpi:p.UNC, ang:60});
+  roscas.push({n:`${p.n} UNF`, t:"UNF", d:p.d, tpi:p.UNF, ang:60});
+});
+
+const whit = [
+  {n:"1/4", d:6.35, tpi:20},
+  {n:"5/16", d:7.94, tpi:18}
+];
+
+whit.forEach(w=>{
+  roscas.push({n:`${w.n} BSW`, t:"Whitworth", d:w.d, tpi:w.tpi, ang:55});
+});
+
+const bsp = [
+  {n:"1/4", d:13.16, tpi:19},
+  {n:"3/8", d:16.66, tpi:19},
+  {n:"1/2", d:20.95, tpi:14}
+];
+
+bsp.forEach(b=>{
+  roscas.push({n:`${b.n} BSPP`, t:"Gas", d:b.d, tpi:b.tpi, ang:55});
+  roscas.push({n:`${b.n} BSPT`, t:"Gas", d:b.d, tpi:b.tpi, ang:55});
+});
+
+// =====================
+// FILTRADO
+// =====================
+function roscasFiltradas(){
+  const f = document.getElementById("filtro").value;
+  if(f==="todas") return roscas;
+  return roscas.filter(r=>r.t.includes(f));
+}
+
+// =====================
+// SELECTOR
+// =====================
+function cargarSelector(){
+  const sel = document.getElementById("selector");
+  sel.innerHTML = "";
+
+  roscasFiltradas().forEach((r,i)=>{
+    let o=document.createElement("option");
+    o.value=i;
+    o.text=r.n;
+    sel.appendChild(o);
+  });
+}
+
+// =====================
+// UI
+// =====================
+function cambiarModo(){
+  const m = modo.value;
+  bloqueIdentificar.classList.toggle("hidden", m!=="identificar");
+  bloqueConsultar.classList.toggle("hidden", m!=="consultar");
+}
+
+// =====================
+// IDENTIFICAR
+// =====================
 function identificar(){
 
-  const d = parseFloat(document.getElementById("diametro").value);
-  const pInput = parseFloat(document.getElementById("paso").value);
+  const lista = roscasFiltradas();
 
-  if(!d || !pInput){
-    resultado.innerText = "Ingresá diámetro y paso";
-    return;
-  }
+  const d = parseFloat(diametro.value);
+  const p = parseFloat(paso.value);
 
-  let candidatos = [];
+  let encontrados = [];
 
-  roscas.forEach(r=>{
-    let pasoRef = r.p ? r.p : 25.4/r.tpi;
+  lista.forEach(r=>{
+    let paso = r.p ? r.p : 25.4/r.tpi;
 
-    let errorD = Math.abs(r.d - d);
-    let errorP = Math.abs(pasoRef - pInput);
-
-    // tolerancias reales
-    if(errorD < 0.5 && errorP < 0.2){
-      candidatos.push(r);
+    if(Math.abs(r.d - d)<0.5 && Math.abs(paso - p)<0.2){
+      encontrados.push(r);
     }
   });
 
-  if(candidatos.length === 0){
-    resultado.innerText = "❌ No coincide con una rosca estándar de la tabla";
+  if(encontrados.length===0){
+    resultado.innerText="❌ No coincide";
     return;
   }
 
-  if(candidatos.length === 1){
-    mostrar(candidatos[0], true);
-  } else {
-    let txt = "⚠️ Posibles coincidencias:\n\n";
-    candidatos.forEach(r=>{
-      txt += "- " + r.n + " (" + r.t + ")\n";
-    });
-    resultado.innerText = txt;
-  }
+  let txt="Coincidencias:\n\n";
+  encontrados.forEach(r=>{
+    txt+=`- ${r.n} (${r.t})\n`;
+  });
+
+  resultado.innerText=txt;
 }
 
-// CONSULTAR
-function mostrarDatos(){
-  mostrar(roscas[document.getElementById("selector").value], false);
-}
-
+// =====================
 // MOSTRAR
-function mostrar(r,aprox){
+// =====================
+function mostrarDatos(){
+  const lista = roscasFiltradas();
+  const r = lista[selector.value];
 
-  let pasoMM = r.p ? r.p : 25.4/r.tpi;
-  let pasoTxt = r.p ? r.p+" mm" : r.tpi+" TPI";
+  let paso = r.p ? r.p : 25.4/r.tpi;
 
-  let mecha = (r.d - pasoMM).toFixed(2);
-  let nucleo = (r.d - 1.2*pasoMM).toFixed(2);
-  let prof = (0.613 * pasoMM).toFixed(2);
-
-  document.getElementById("resultado").innerText =
-`${aprox?"✔ Rosca identificada\n\n":""}
-Tipo: ${r.t}
+  resultado.innerText=
+`Tipo: ${r.t}
 Nombre: ${r.n}
 
 Ø exterior: ${r.d} mm
-Paso: ${pasoTxt}
+Paso: ${r.p ? r.p+" mm" : r.tpi+" TPI"}
 Ángulo: ${r.ang}°
 
-Ø núcleo: ${nucleo} mm
-Profundidad: ${prof} mm
-
-Mecha: ${mecha} mm`;
+Mecha: ${(r.d - paso).toFixed(2)} mm`;
 }
+
+// init
+cargarSelector();
 
 </script>
 
